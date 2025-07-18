@@ -34,6 +34,8 @@ async function getSheetsClient() {
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
+  console.log('credentials : ', credentials.client_email);
+  console.log('private key : ', credentials.private_key);
   const sheets = google.sheets({ version: 'v4', auth: authClient });
   return sheets;
 }
