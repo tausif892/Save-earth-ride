@@ -10,32 +10,50 @@ import Image from 'next/image';
 /**
  * Current Drives Data Loader
  * 
- * This function loads current drives from localStorage (admin-managed data).
- * In production, this would be replaced with API calls to MongoDB.
+ * This function loads current drives from the API (Google Sheets backend).
+ * Falls back to localStorage for development/testing purposes.
  * 
  * @returns Array of current drive objects
  */
-const getCurrentDrives = () => {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem('currentDrives');
-      if (saved) {
-        const drives = JSON.parse(saved);
-        // Data validation: ensure all drives have required fields
-        return drives.filter((drive: any) => 
-          drive.title && 
-          drive.location && 
-          drive.date && 
-          drive.status === 'upcoming' &&
-          drive.registrationOpen
-        );
-      }
-    } catch (error) {
-      console.error('Error loading current drives:', error);
+const getCurrentDrives = async () => {
+  try {
+    // Try to fetch from API first
+    const response = await fetch('/api/drives?status=upcoming');
+    if (response.ok) {
+      const drives = await response.json();
+      // Filter for upcoming drives with open registration
+      return drives.filter((drive: any) => 
+        drive.title && 
+        drive.location && 
+        drive.date && 
+        drive.status === 'upcoming' &&
+        drive.registrationOpen
+      );
     }
+  } catch (error) {
+    console.error('Error fetching drives from API:', error);
   }
+
+  // Fallback to localStorage for development
+  // if (typeof window !== 'undefined') {
+  //   try {
+  //     const saved = localStorage.getItem('currentDrives');
+  //     if (saved) {
+  //       const drives = JSON.parse(saved);
+  //       return drives.filter((drive: any) => 
+  //         drive.title && 
+  //         drive.location && 
+  //         drive.date && 
+  //         drive.status === 'upcoming' &&
+  //         drive.registrationOpen
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error('Error loading current drives from localStorage:', error);
+  //   }
+  // }
   
-  // Fallback data if localStorage is empty or corrupted
+  // Final fallback data
   return [
     {
       id: 1,
@@ -48,6 +66,11 @@ const getCurrentDrives = () => {
       registrationOpen: true,
       description: 'Start the new year with a green resolution! Join us for a massive tree planting drive.',
       organizer: 'Mumbai Riders Club',
+      contactEmail: 'info@mumbairiders.com',
+      difficulty: 'Easy',
+      duration: '6 hours',
+      meetingPoint: 'Marine Drive',
+      registrationDeadline: '2024-12-28',
       logo: '/Save-earth-ride-logo.jpg'
     }
   ];
@@ -58,11 +81,12 @@ const getCurrentDrives = () => {
  * 
  * Displays upcoming drives in a rotating banner at the top of the homepage.
  * Features:
- * - Real-time updates from admin panel
+ * - Real-time updates from Google Sheets via API
  * - Auto-rotation every 5 seconds
  * - Responsive design for mobile/desktop
  * - Dark mode support
  * - Data validation and error handling
+ * - Synced with admin panel data structure
  */
 export function RunningBanner() {
   const [currentDrives, setCurrentDrives] = useState<any[]>([]);
@@ -71,13 +95,22 @@ export function RunningBanner() {
 
   // Load initial data and set up real-time updates
   useEffect(() => {
-    const loadData = () => {
-      const drives = getCurrentDrives();
-      setCurrentDrives(drives);
-      setIsLoading(false);
+    const loadData = async () => {
+      // setIsLoading(true);
+      try {
+        const drives = await getCurrentDrives();
+        setCurrentDrives(drives);
+      } catch (error) {
+        console.error('Error loading drives:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadData();
+
+    // Set up periodic refresh to sync with admin updates
+    // const refreshInterval = setInterval(loadData, 30000); // Refresh every 30 seconds
 
     /**
      * Real-time Update Listener
@@ -99,7 +132,11 @@ export function RunningBanner() {
     };
 
     window.addEventListener('adminDataUpdate', handleUpdate as EventListener);
-    return () => window.removeEventListener('adminDataUpdate', handleUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('adminDataUpdate', handleUpdate as EventListener);
+      // clearInterval(refreshInterval);
+    };
   }, [currentIndex]);
 
   // Auto-rotation functionality
@@ -153,6 +190,21 @@ export function RunningBanner() {
     }
   };
 
+  /**
+   * Difficulty Color Helper
+   * 
+   * Returns appropriate color classes for different difficulty levels.
+   */
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Easy': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'Moderate': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'Challenging': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'Expert': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  };
+
   // Don't render if no drives available
   if (isLoading || !currentDrives.length) {
     return null;
@@ -184,7 +236,7 @@ export function RunningBanner() {
           <div className="flex items-center space-x-4">
             {/* Drive Logo and Status */}
             <div className="flex items-center space-x-3">
-              <div className="relative p-2 bg-white/0 rounded-full ">
+              <div className="relative p-2 bg-white/0 rounded-full">
                 {currentDrive.logo ? (
                   <Image
                     src={currentDrive.logo}
@@ -194,7 +246,7 @@ export function RunningBanner() {
                     className="rounded-full/25 object-cover align-center"
                   />
                 ) : (
-                  <Bike className=" mr-1" />
+                  <Bike className="mr-1" />
                 )}
               </div>
               <div className="flex items-center space-x-2">
@@ -203,6 +255,12 @@ export function RunningBanner() {
                   <Badge className="animate-pulse flex items-center space-x-1 text-xs font-semibold px-2 py-1">
                     <AlertCircle className="h-3 w-3 mr-1" />
                     New
+                  </Badge>
+                )}
+                {/* Difficulty Badge */}
+                {currentDrive.difficulty && (
+                  <Badge className={getDifficultyColor(currentDrive.difficulty)}>
+                    {currentDrive.difficulty}
                   </Badge>
                 )}
               </div>
@@ -225,11 +283,19 @@ export function RunningBanner() {
                 <div className="flex items-center space-x-1">
                   <Clock className="h-4 w-4" />
                   <span>
-                    {daysUntil === 0 ? 'Today!' : 
+                    {daysUntil <0 ? 'Drive Completed':
+                     daysUntil === 0 ? 'Today!' : 
                      daysUntil === 1 ? 'Tomorrow!' : 
                      `${daysUntil} days to go`}
                   </span>
                 </div>
+                {/* Additional info for larger screens */}
+                {currentDrive.organizer && (
+                  <div className="hidden lg:flex items-center space-x-1">
+                    <span className="text-gray-500">by</span>
+                    <span className="font-medium">{currentDrive.organizer}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -238,13 +304,20 @@ export function RunningBanner() {
           <div className="flex items-center space-x-4">
             <div className="hidden lg:flex items-center space-x-6 text-sm">
               <div className="text-center">
-                <div className="font-bold text-lg">{currentDrive.participants}</div>
+                <div className="font-bold text-lg">{currentDrive.participants || 0}</div>
                 <div className="text-gray/80 dark:text-white/80">Riders</div>
               </div>
               <div className="text-center">
-                <div className="font-bold text-lg">{currentDrive.treesTarget}</div>
+                <div className="font-bold text-lg">{currentDrive.treesTarget || 0}</div>
                 <div className="text-gray/80 dark:text-white/80">Trees Target</div>
               </div>
+              {/* Duration display */}
+              {currentDrive.duration && (
+                <div className="text-center">
+                  <div className="font-bold text-lg">{currentDrive.duration}</div>
+                  <div className="text-gray/80 dark:text-white/80">Duration</div>
+                </div>
+              )}
             </div>
             
             <Link href="/register">
