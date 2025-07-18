@@ -402,4 +402,4 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export const dynamic = 'dynamic';
+export const dynamic = 'force-static';

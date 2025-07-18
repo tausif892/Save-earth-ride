@@ -8,7 +8,7 @@ export async function GET() {
   return NextResponse.json({ data });
 }
 
-export const dynamic = "dynamic";
+export const dynamic = "force-static";
 
 export async function POST(req: NextRequest) {
   try {
