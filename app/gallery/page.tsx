@@ -105,69 +105,69 @@ interface GalleryImageProps {
   onError?: () => void;
 }
 
-// export function GalleryImage({ 
-//   src, 
-//   alt, 
-//   className = "", 
-//   fallbackSrc,
-//   onError 
-// }: GalleryImageProps) {
-//   const [imageError, setImageError] = useState(false);
-//   const [currentSrc, setCurrentSrc] = useState(src);
-//   const [isLoading, setIsLoading] = useState(true);
+export function GalleryImage({ 
+  src, 
+  alt, 
+  className = "", 
+  fallbackSrc,
+  onError 
+}: GalleryImageProps) {
+  const [imageError, setImageError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [isLoading, setIsLoading] = useState(true);
 
-//   const handleImageError = () => {
-//     console.error('Failed to load image:', currentSrc);
-//     setImageError(true);
-//     setIsLoading(false);
+  const handleImageError = () => {
+    console.error('Failed to load image:', currentSrc);
+    setImageError(true);
+    setIsLoading(false);
     
-//     if (fallbackSrc && currentSrc !== fallbackSrc) {
-//       setCurrentSrc(fallbackSrc);
-//       setImageError(false);
-//       setIsLoading(true);
-//     } else {
-//       onError?.();
-//     }
-//   };
+    if (fallbackSrc && currentSrc !== fallbackSrc) {
+      setCurrentSrc(fallbackSrc);
+      setImageError(false);
+      setIsLoading(true);
+    } else {
+      onError?.();
+    }
+  };
 
-//   const handleImageLoad = () => {
-//     setIsLoading(false);
-//     setImageError(false);
-//   };
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setImageError(false);
+  };
 
-//   if (imageError) {
-//     return (
-//       <div className={`${className} flex items-center justify-center bg-gray-200 dark:bg-gray-700`}>
-//         <div className="text-center p-8">
-//           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-//           <p className="text-sm text-gray-500 dark:text-gray-400">
-//             Image failed to load
-//           </p>
-//           <p className="text-xs text-gray-400 mt-1 break-all">
-//             {src}
-//           </p>
-//         </div>
-//       </div>
-//     );
-//   }
+  if (imageError) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-200 dark:bg-gray-700`}>
+        <div className="text-center p-8">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Image failed to load
+          </p>
+          <p className="text-xs text-gray-400 mt-1 break-all">
+            {src}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-//   return (
-//     <div className="relative">
-//       {isLoading && (
-//         <div className={`${className} flex items-center justify-center bg-gray-200 dark:bg-gray-700 animate-pulse`}>
-//           <Image className="h-12 w-12 text-gray-400" />
-//         </div>
-//       )}
-//       <img
-//         src={currentSrc}
-//         alt={alt}
-//         className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-//         onLoad={handleImageLoad}
-//         onError={handleImageError}
-//         loading="lazy"
-//       />
-//     </div>
-//   );}
+  return (
+    <div className="relative">
+      {isLoading && (
+        <div className={`${className} flex items-center justify-center bg-gray-200 dark:bg-gray-700 animate-pulse`}>
+          <Image className="h-12 w-12 text-gray-400" />
+        </div>
+      )}
+      <img
+        src={currentSrc}
+        alt={alt}
+        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        loading="lazy"
+      />
+    </div>
+  );}
 
 export default function GalleryPage() {
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
