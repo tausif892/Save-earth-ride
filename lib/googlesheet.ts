@@ -1,8 +1,8 @@
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 
-// Your Spreadsheet ID and categories remain the same
 const SPREADSHEET_ID = '1JQOP0BInND1IVZZv29IkYmjJfl_Zl5LW68R57DS2iAg';
+
 const categories = [
   'drives',
   'blog',
@@ -16,26 +16,22 @@ const categories = [
   'donations',
 ];
 
-// Function to get the Google Sheets client
+const auth = new google.auth.GoogleAuth({
+  credentials: {
+    type: 'service_account',
+    project_id: process.env.GOOGLE_PROJECT_ID,
+    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+    token_uri: 'https://oauth2.googleapis.com/token',
+  },
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
 async function getSheetsClient() {
-  // 1. Get the JSON credentials string from the environment variable
-  const credentialsJson = process.env.GCP_CREDDENTIALS;
-  if (!credentialsJson) {
-    throw new Error('GCP_CREDDENTIALS environment variable is not set.');
-  }
-
-  // 2. Parse the JSON string into an object
-  const credentials = JSON.parse(credentialsJson);
-
-  // 3. Authorize a client with the parsed credentials
-  const authClient = new JWT({
-    email: credentials.client_email,
-    key: credentials.private_key,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  console.log('credentials : ', credentials.client_email);
-  console.log('private key : ', credentials.private_key);
+  const authClient = await auth.getClient() as JWT;
   const sheets = google.sheets({ version: 'v4', auth: authClient });
   return sheets;
 }
