@@ -13,7 +13,6 @@ import {
   invalidateCache,
   getCacheStats
 } from '@/lib/driveSheetHelpers';
-import crypto from 'crypto';
 
 // Advanced rate limiting with sliding window
 interface RateLimitEntry {
@@ -44,6 +43,179 @@ const performanceMetrics = {
   avgResponseTime: 0,
   slowRequests: 0
 };
+
+// Image processing interfaces
+interface ImageProcessingResult {
+  base64: string;
+  etag: string;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  isValid: boolean;
+  error?: string;
+}
+
+// Enhanced ETag generation function
+function generateETag(data: any): string {
+  return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 16);
+}
+
+// Image compression function for Google Sheets (Server-side with Canvas API polyfill)
+async function compressImageForSheets(
+  imageBuffer: Buffer, 
+  fileName: string,
+  mimeType: string,
+  maxSizeKB: number = 35
+): Promise<string> {
+  // Import canvas for server-side image processing
+  const { createCanvas, loadImage } = await import('canvas');
+  
+  try {
+    const img = await loadImage(imageBuffer);
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext('2d');
+    
+    // Calculate new dimensions to stay under size limit
+    let { width, height } = img;
+    let quality = 0.8;
+    
+    // Reduce dimensions if needed
+    const maxDimension = 800;
+    if (width > maxDimension || height > maxDimension) {
+      const ratio = Math.min(maxDimension / width, maxDimension / height);
+      width = Math.floor(width * ratio);
+      height = Math.floor(height * ratio);
+    }
+    
+    // Set canvas dimensions
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    // Try different quality levels
+    const tryCompress = (q: number): string => {
+      const buffer = canvas.toBuffer('image/jpeg', { quality: q });
+      const base64 = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      const sizeKB = (base64.length * 0.75) / 1024; // Approximate KB
+      
+      if (sizeKB <= maxSizeKB || q <= 0.1) {
+        return base64;
+      } else {
+        return tryCompress(q - 0.1);
+      }
+    };
+    
+    return tryCompress(quality);
+    
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    throw new Error('Failed to compress image');
+  }
+}
+
+// Process uploaded image with ETag generation
+async function processImageWithETag(
+  imageBuffer: Buffer,
+  fileName: string,
+  mimeType: string,
+  originalSize: number,
+  maxSizeKB: number = 35
+): Promise<ImageProcessingResult> {
+  try {
+    // Validate image type
+    if (!mimeType.startsWith('image/')) {
+      return {
+        base64: '',
+        etag: '',
+        originalSize,
+        compressedSize: 0,
+        compressionRatio: 0,
+        isValid: false,
+        error: 'File is not an image'
+      };
+    }
+    
+    // Check if original size is too large
+    const estimatedBase64Size = originalSize * 1.33;
+    if (estimatedBase64Size > 50000) {
+      return {
+        base64: '',
+        etag: '',
+        originalSize,
+        compressedSize: 0,
+        compressionRatio: 0,
+        isValid: false,
+        error: 'Image too large for Google Sheets storage'
+      };
+    }
+    
+    const base64 = await compressImageForSheets(imageBuffer, fileName, mimeType, maxSizeKB);
+    
+    // Create metadata for ETag generation
+    const imageData = {
+      name: fileName,
+      type: mimeType,
+      originalSize,
+      compressedSize: base64.length,
+      timestamp: Date.now(),
+      contentPreview: base64.slice(0, 100) // First 100 chars for uniqueness
+    };
+    
+    const etag = generateETag(imageData);
+    const compressionRatio = Math.max(0, ((originalSize * 1.33 - base64.length) / (originalSize * 1.33)) * 100);
+    
+    return {
+      base64,
+      etag,
+      originalSize,
+      compressedSize: base64.length,
+      compressionRatio,
+      isValid: true
+    };
+    
+  } catch (error) {
+    return {
+      base64: '',
+      etag: '',
+      originalSize,
+      compressedSize: 0,
+      compressionRatio: 0,
+      isValid: false,
+      error: error instanceof Error ? error.message : 'Unknown error during image processing'
+    };
+  }
+}
+
+// Parse multipart form data for image uploads
+async function parseFormData(request: NextRequest): Promise<{
+  fields: Record<string, string>;
+  files: Array<{
+    name: string;
+    buffer: Buffer;
+    mimeType: string;
+    size: number;
+  }>;
+}> {
+  const formData = await request.formData();
+  const fields: Record<string, string> = {};
+  const files: Array<{ name: string; buffer: Buffer; mimeType: string; size: number; }> = [];
+  
+  for (const [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      const buffer = Buffer.from(await value.arrayBuffer());
+      files.push({
+        name: value.name,
+        buffer,
+        mimeType: value.type,
+        size: value.size
+      });
+    } else {
+      fields[key] = value;
+    }
+  }
+  
+  return { fields, files };
+}
 
 // Advanced rate limiting with sliding window
 function advancedRateLimit(ip: string): { allowed: boolean; remainingRequests: number } {
@@ -117,14 +289,6 @@ function setCache(key: string, data: any): void {
     etag: generateETag(data),
     hits: 0
   });
-}
-
-function generateETag(data: any): string {
-  const hash = crypto.createHash('sha256')
-    .update(JSON.stringify(data))
-    .digest('base64')
-    .slice(0, 16);
-  return hash;
 }
 
 // Performance monitoring middleware
@@ -257,7 +421,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST - Optimized with immediate cache updates
+ * POST - Enhanced with image upload and compression
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -272,7 +436,42 @@ export async function POST(request: NextRequest) {
   }
   
   try {
-    const body = await request.json();
+    let body: any;
+    let imageProcessingResult: ImageProcessingResult | null = null;
+    
+    // Check if this is a multipart form (image upload)
+    const contentType = request.headers.get('content-type');
+    
+    if (contentType?.includes('multipart/form-data')) {
+      const { fields, files } = await parseFormData(request);
+      body = fields;
+      
+      // Process image if uploaded
+      if (files.length > 0) {
+        const imageFile = files.find(f => f.mimeType.startsWith('image/'));
+        if (imageFile) {
+          imageProcessingResult = await processImageWithETag(
+            imageFile.buffer,
+            imageFile.name,
+            imageFile.mimeType,
+            imageFile.size
+          );
+          
+          if (!imageProcessingResult.isValid) {
+            return NextResponse.json(
+              { error: `Image processing failed: ${imageProcessingResult.error}` },
+              { status: 400 }
+            );
+          }
+          
+          // Add processed image to body
+          body.logo = imageProcessingResult.base64;
+          body.logoETag = imageProcessingResult.etag;
+        }
+      }
+    } else {
+      body = await request.json();
+    }
     
     // Enhanced validation
     const requiredFields = ['title', 'location', 'date', 'organizer', 'contactEmail'];
@@ -326,7 +525,21 @@ export async function POST(request: NextRequest) {
     // Invalidate related caches
     responseCache.clear();
     
-    const response = NextResponse.json(newDrive, { status: 201 });
+    // Prepare response with image processing info
+    const responseData: any = {
+      ...newDrive,
+      imageProcessing: imageProcessingResult ? {
+        processed: true,
+        originalSize: imageProcessingResult.originalSize,
+        compressedSize: imageProcessingResult.compressedSize,
+        compressionRatio: `${imageProcessingResult.compressionRatio.toFixed(1)}%`,
+        etag: imageProcessingResult.etag
+      } : {
+        processed: false
+      }
+    };
+    
+    const response = NextResponse.json(responseData, { status: 201 });
     response.headers.set('X-RateLimit-Remaining', remainingRequests.toString());
     trackPerformance(startTime);
     return response;
@@ -342,7 +555,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * PUT - Optimized updates with partial validation
+ * PUT - Enhanced with image update support
  */
 export async function PUT(request: NextRequest) {
   const startTime = Date.now();
@@ -357,7 +570,42 @@ export async function PUT(request: NextRequest) {
   }
   
   try {
-    const body = await request.json();
+    let body: any;
+    let imageProcessingResult: ImageProcessingResult | null = null;
+    
+    // Check if this is a multipart form (image upload)
+    const contentType = request.headers.get('content-type');
+    
+    if (contentType?.includes('multipart/form-data')) {
+      const { fields, files } = await parseFormData(request);
+      body = fields;
+      
+      // Process image if uploaded
+      if (files.length > 0) {
+        const imageFile = files.find(f => f.mimeType.startsWith('image/'));
+        if (imageFile) {
+          imageProcessingResult = await processImageWithETag(
+            imageFile.buffer,
+            imageFile.name,
+            imageFile.mimeType,
+            imageFile.size
+          );
+          
+          if (!imageProcessingResult.isValid) {
+            return NextResponse.json(
+              { error: `Image processing failed: ${imageProcessingResult.error}` },
+              { status: 400 }
+            );
+          }
+          
+          // Add processed image to body
+          body.logo = imageProcessingResult.base64;
+          body.logoETag = imageProcessingResult.etag;
+        }
+      }
+    } else {
+      body = await request.json();
+    }
     
     if (!body.id) {
       return NextResponse.json(
@@ -398,7 +646,21 @@ export async function PUT(request: NextRequest) {
     // Invalidate related caches
     responseCache.clear();
     
-    const response = NextResponse.json(updatedDrive);
+    // Prepare response with image processing info
+    const responseData: any = {
+      ...updatedDrive,
+      imageProcessing: imageProcessingResult ? {
+        processed: true,
+        originalSize: imageProcessingResult.originalSize,
+        compressedSize: imageProcessingResult.compressedSize,
+        compressionRatio: `${imageProcessingResult.compressionRatio.toFixed(1)}%`,
+        etag: imageProcessingResult.etag
+      } : {
+        processed: false
+      }
+    };
+    
+    const response = NextResponse.json(responseData);
     response.headers.set('X-RateLimit-Remaining', remainingRequests.toString());
     trackPerformance(startTime);
     return response;
@@ -637,4 +899,3 @@ setInterval(() => {
 }, 5 * 60 * 1000); // Run every 5 minutes
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
