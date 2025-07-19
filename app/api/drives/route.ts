@@ -13,6 +13,7 @@ import {
   invalidateCache,
   getCacheStats
 } from '@/lib/driveSheetHelpers';
+import crypto from 'crypto';
 
 // Advanced rate limiting with sliding window
 interface RateLimitEntry {
@@ -119,7 +120,11 @@ function setCache(key: string, data: any): void {
 }
 
 function generateETag(data: any): string {
-  return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 16);
+  const hash = crypto.createHash('sha256')
+    .update(JSON.stringify(data))
+    .digest('base64')
+    .slice(0, 16);
+  return hash;
 }
 
 // Performance monitoring middleware
