@@ -631,5 +631,5 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Run every 5 minutes
 
-export const dynamic = 'auto';
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
