@@ -17,6 +17,7 @@ export interface DriveData {
   contactEmail: string;
   registrationDeadline?: string;
   meetingPoint?: string;
+  endingPoint?: string;
   duration?: string;
   difficulty?: 'Easy' | 'Moderate' | 'Challenging' | 'Expert';
   logo?: string;

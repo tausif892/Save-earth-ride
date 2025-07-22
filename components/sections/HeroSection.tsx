@@ -57,7 +57,7 @@ export function HeroSection() {
     const timer = setInterval(() => {
       setTreeCount(prev => {
         if (prev < targetCount) {
-          const increment = Math.max(Math.floor(targetCount / 100), 50);
+          const increment = Math.max(Math.floor(targetCount / 1000 *23), 50);
           return Math.min(prev + increment, targetCount);
         }
         return targetCount;
@@ -185,7 +185,7 @@ export function HeroSection() {
                 <TreePine className="h-5 w-5 text-green-400" />
                 {/* <Bike className="h-4 w-4 text-blue-400" /> */}
               </div>
-              <div className="text-2xl font-bold">{Math.floor(treeCount / 1000 *10)+213}K+</div>
+              <div className="text-2xl font-bold">{Math.floor(treeCount / 1000)}K+</div>
               <div className="text-sm text-gray-200">Trees</div>
             </div>
           </div>

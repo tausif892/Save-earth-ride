@@ -13,6 +13,7 @@ export const DRIVE_SHEET_HEADERS = [
   'contactEmail',
   'registrationDeadline',
   'meetingPoint',
+  'endingPoint',
   'duration',
   'difficulty',
   'logo',

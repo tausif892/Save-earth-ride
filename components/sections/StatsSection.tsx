@@ -11,107 +11,71 @@ export function StatsSection() {
     countries: 156,
     events: 543
   });
+  const [treeCount, setTreeCount] = useState(0);
+  const [targetCount, setTargetCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [counters, setCounters] = useState([0, 0, 0, 0]);
 
+  const fetchTreeCount = async () => {
+    try {
+      const response = await fetch('/api/dashboard');
+      const result = await response.json();
+      
+      if (result.success && result.data.treeCount) {
+        setTargetCount(result.data.treeCount.count);
+      }
+    } catch (error) {
+      console.error('Error fetching tree count:', error);
+      // Fallback to default value
+      setTargetCount(25847);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    /**
-     * Dynamic Stats Loading
-     * 
-     * Loads real-time data from admin-managed localStorage.
-     * This ensures the stats always reflect current data.
-     */
-    const loadDynamicStats = () => {
-      try {
-        // Tree count from admin
-        const treeCount = localStorage.getItem('treeCount');
-        if (treeCount) {
-          setStats(prev => ({ ...prev, trees: parseInt(treeCount) }));
-        }
+    // Initial fetch
+    fetchTreeCount();
 
-        // Gallery count for countries
-        const galleryData = localStorage.getItem('galleryData');
-        if (galleryData) {
-          const gallery = JSON.parse(galleryData);
-          const countries = new Set(gallery.map((item: any) => item.location)).size;
-          setStats(prev => ({ ...prev, countries }));
-        }
+    // Set up polling for real-time updates every 30 seconds
+    const pollInterval = setInterval(fetchTreeCount, 30000);
 
-        // Timeline events count
-        const timelineData = localStorage.getItem('timelineData');
-        if (timelineData) {
-          const timeline = JSON.parse(timelineData);
-          setStats(prev => ({ ...prev, events: timeline.length }));
-        }
-
-        // Registrations count (approximate riders)
-        const registrations = localStorage.getItem('registrations');
-        if (registrations) {
-          const regs = JSON.parse(registrations);
-          setStats(prev => ({ ...prev, riders: 50000 + regs.length }));
-        }
-
-        // Donations count for additional metrics
-        const donations = localStorage.getItem('donations');
-        if (donations) {
-          const donationData = JSON.parse(donations);
-          // Could use this for additional stats if needed
-        }
-      } catch (error) {
-        console.error('Error loading dynamic stats:', error);
-      }
-    };
-
-    loadDynamicStats();
-
-    /**
-     * Real-time Update Listener
-     * 
-     * Listens for admin panel updates and immediately updates stats.
-     */
-    const handleUpdate = (event: CustomEvent) => {
+    // Listen for custom events from admin updates
+    const handleAdminUpdate = (event: CustomEvent) => {
       if (event.detail.section === 'treeCount') {
-        setStats(prev => ({ ...prev, trees: event.detail.data }));
-      } else if (event.detail.section === 'gallery') {
-        const countries = new Set(event.detail.data.map((item: any) => item.location)).size;
-        setStats(prev => ({ ...prev, countries }));
-      } else if (event.detail.section === 'timeline') {
-        setStats(prev => ({ ...prev, events: event.detail.data.length }));
-      } else if (event.detail.section === 'registrations') {
-        setStats(prev => ({ ...prev, riders: 50000 + event.detail.data.length }));
+        setTargetCount(event.detail.data);
       }
     };
 
-    window.addEventListener('adminDataUpdate', handleUpdate as EventListener);
-
-    /**
-     * Counter Animation
-     * 
-     * Animates the numbers from 0 to their target values for visual appeal.
-     */
-    const statsArray = [stats.trees, stats.riders, stats.countries, stats.events];
-    const timers = statsArray.map((stat, index) => {
-      const increment = Math.ceil(stat / 100);
-      return setInterval(() => {
-        setCounters(prev => {
-          const newCounters = [...prev];
-          if (newCounters[index] < stat) {
-            newCounters[index] = Math.min(newCounters[index] + increment, stat);
-          }
-          return newCounters;
-        });
-      }, 50);
-    });
+    window.addEventListener('adminDataUpdate', handleAdminUpdate as EventListener);
 
     return () => {
-      timers.forEach(clearInterval);
-      window.removeEventListener('adminDataUpdate', handleUpdate as EventListener);
+      clearInterval(pollInterval);
+      window.removeEventListener('adminDataUpdate', handleAdminUpdate as EventListener);
     };
-  }, [stats.trees, stats.riders, stats.countries, stats.events]);
+  }, []);
+
+  useEffect(() => {
+    if (targetCount === 0) return;
+
+    // Animate counter when target changes
+    const timer = setInterval(() => {
+      setTreeCount(prev => {
+        if (prev < targetCount) {
+          const increment = Math.max(Math.floor(targetCount / 1000 *23), 50);
+          return Math.min(prev + increment, targetCount);
+        }
+        return targetCount;
+      });
+    }, 50);
+
+    return () => clearInterval(timer);
+  }, [targetCount]);
 
   const statsData = [
     {
       icon: TreePine,
-      value: counters[0],
+      value: treeCount.toLocaleString(),
       label: 'Trees Planted',
       color: 'text-green-600',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
@@ -119,7 +83,7 @@ export function StatsSection() {
     },
     {
       icon: Users,
-      value: counters[1],
+      value: 52430,
       label: 'Global Riders',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
@@ -127,7 +91,7 @@ export function StatsSection() {
     },
     {
       icon: Globe,
-      value: counters[2],
+      value: 25,
       label: 'Countries',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',
@@ -135,7 +99,7 @@ export function StatsSection() {
     },
     {
       icon: Calendar,
-      value: counters[3],
+      value: 160,
       label: 'Events Organized',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',

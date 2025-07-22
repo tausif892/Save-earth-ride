@@ -67,6 +67,7 @@ export default function AdminDrivesPage() {
     contactEmail: '',
     registrationDeadline: '',
     meetingPoint: '',
+    endingPoint: '',
     duration: '',
     difficulty: 'Easy',
     logo: ''
@@ -275,6 +276,7 @@ export default function AdminDrivesPage() {
       contactEmail: item.contactEmail || '',
       registrationDeadline: item.registrationDeadline || '',
       meetingPoint: item.meetingPoint || '',
+      endingPoint: item.endingPoint || '',
       duration: item.duration || '',
       difficulty: item.difficulty || 'Easy',
       logo: item.logo || ''
@@ -329,7 +331,7 @@ export default function AdminDrivesPage() {
     setFormData({
       title: '', location: '', date: '', participants: '', treesTarget: '', 
       status: 'upcoming', registrationOpen: true, description: '', organizer: '', 
-      contactEmail: '', registrationDeadline: '', meetingPoint: '', duration: '', 
+      contactEmail: '', registrationDeadline: '', meetingPoint: '', endingPoint: '', duration: '', 
       difficulty: 'Easy', logo: ''
     });
     setLogoPreview('');
@@ -515,7 +517,7 @@ export default function AdminDrivesPage() {
                               alt="Drive Logo"
                               width={80}
                               height={80}
-                              className="rounded-lg object-cover border-2 border-border"
+                              className="rounded-full border border-gray-300 shadow-md object-cover"
                             />
                           </div>
                         )}
@@ -562,7 +564,8 @@ export default function AdminDrivesPage() {
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
                             <div>Organizer: {item.organizer}</div>
                             <div>Duration: {item.duration}</div>
-                            <div>Meeting: {item.meetingPoint}</div>
+                            <div>Meeting Point & Time: {item.meetingPoint}</div>
+                            <div>Ending Point: {item.endingPoint}</div>
                           </div>
                         </div>
                       </div>
@@ -768,11 +771,20 @@ export default function AdminDrivesPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="meetingPoint">Meeting Point</Label>
+                  <Label htmlFor="meetingPoint">Meeting Point & Time</Label>
                   <Input
                     id="meetingPoint"
                     value={formData.meetingPoint}
                     onChange={(e) => setFormData({...formData, meetingPoint: e.target.value})}
+                    placeholder="Starting location"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endingPoint">Ending Point</Label>
+                  <Input
+                    id="endingPoint"
+                    value={formData.endingPoint}
+                    onChange={(e) => setFormData({...formData, endingPoint: e.target.value})}
                     placeholder="Starting location"
                   />
                 </div>
