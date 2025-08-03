@@ -22,7 +22,6 @@ const navigation = [
   { name: 'Gallery', href: '/gallery', icon: Users },
   { name: 'Timeline', href: '/timeline', icon: Calendar },
   { name: 'Blog', href: '/blog', icon: BookOpen },
-  { name: 'Map', href: '/map', icon: MapPin },
   { name: 'Sponsors', href: '/sponsors', icon: Handshake },
   { name: 'Register', href: '/register', icon: UserPlus },
   { name: 'Donate', href: '/donate', icon: Heart },

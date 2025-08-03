@@ -444,7 +444,7 @@ export function RunningBanner() {
 
       {/* CTA */}
       <div className="flex md:flex-col justify-between items-end gap-4 md:items-center w-full md:w-auto">
-        <Link href="/register">
+        <Link href={`/register?rideId=${currentDrive.id}&rideName=${encodeURIComponent(currentDrive.title)}&location=${encodeURIComponent(currentDrive.location)}&date=${currentDrive.date}`}>
           <Button 
             size="sm"
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 transition duration-150 ease-in-out rounded-md shadow-md"

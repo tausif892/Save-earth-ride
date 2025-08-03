@@ -76,7 +76,6 @@ export async function addSponsorData(
   const last   = await col.find().sort({ id: -1 }).limit(1).next()
   const nextId = last ? last.id + 1 : 1
 
-  /* Just attach the generated id—never blank-out caller data */
   const doc: SponsorData = {
     ...sponsor,
     name: sponsor.name,

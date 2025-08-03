@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Camera, Plus, Edit, Trash2, Save, X, MapPin, Calendar,
-  ArrowLeft, Bike, Image as ImageIcon, Filter, Upload, RefreshCw
+  ArrowLeft, Bike, Image as ImageIcon, Filter, Upload, RefreshCw, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -27,6 +27,129 @@ interface GalleryItem {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Google Drive Image parsing utility functions
+const parseGoogleDriveImageUrl = (driveLink: string) => {
+  try {
+    if (!driveLink) return '';
+    
+    // Handle different Google Drive link formats
+    let fileId = '';
+    
+    // Format 1: https://drive.google.com/file/d/FILE_ID/view
+    if (driveLink.includes('/file/d/')) {
+      const match = driveLink.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (match) fileId = match[1];
+    }
+    
+    // Format 2: https://drive.google.com/open?id=FILE_ID
+    else if (driveLink.includes('open?id=')) {
+      const match = driveLink.match(/id=([a-zA-Z0-9_-]+)/);
+      if (match) fileId = match[1];
+    }
+    
+    // Format 3: Already in direct format
+    else if (driveLink.includes('drive.google.com/uc?') || driveLink.includes('drive.google.com/thumbnail?')) {
+      return driveLink;
+    }
+    
+    // If it's a regular URL (not Google Drive), return as is
+    else if (driveLink.startsWith('http') && !driveLink.includes('drive.google.com')) {
+      return driveLink;
+    }
+    
+    if (!fileId) {
+      return driveLink; // Return original link as fallback
+    }
+    
+    // Convert to direct image URL
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+    
+  } catch (error) {
+    console.error('Error parsing image URL:', error);
+    return driveLink;
+  }
+};
+
+// Gallery Image Preview Component
+const GalleryImagePreview = ({ src, alt, className = "", onError }: { 
+  src: string; 
+  alt: string; 
+  className?: string; 
+  onError?: () => void;
+}) => {
+  const [imageSrc, setImageSrc] = useState('');
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (src) {
+      setIsLoading(true);
+      setHasError(false);
+      const parsedSrc = parseGoogleDriveImageUrl(src);
+      setImageSrc(parsedSrc);
+    }
+  }, [src]);
+
+  const handleError = () => {
+    if (!hasError && src.includes('drive.google.com')) {
+      setHasError(true);
+      // Try alternative format if thumbnail fails
+      const fileIdMatch = src.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || src.match(/id=([a-zA-Z0-9_-]+)/);
+      if (fileIdMatch) {
+        setImageSrc(`https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`);
+      }
+    } else {
+      setIsLoading(false);
+      setHasError(true);
+      onError?.();
+    }
+  };
+
+  const handleLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+
+  if (!src) {
+    return (
+      <div className={`${className} bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center`}>
+        <div className="text-center text-gray-500">
+          <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+          <p className="text-sm">No image</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className={`${className} bg-red-50 border-2 border-red-200 flex items-center justify-center`}>
+        <div className="text-center text-red-500">
+          <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+          <p className="text-sm">Image failed to load</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {isLoading && (
+        <div className={`${className} bg-gray-100 border-2 border-gray-200 flex items-center justify-center absolute inset-0 z-10`}>
+          <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+        </div>
+      )}
+      <img
+        src={imageSrc}
+        alt={alt}
+        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        onError={handleError}
+        onLoad={handleLoad}
+      />
+    </div>
+  );
+};
 
 export default function AdminGalleryPage() {
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
@@ -183,7 +306,6 @@ export default function AdminGalleryPage() {
   };
 
   // Delete gallery item
-
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this gallery item?')) return;
 
@@ -225,6 +347,7 @@ export default function AdminGalleryPage() {
 
   const years = [...new Set(galleryData.map(item => item.year))];
   const countries = [...new Set(galleryData.map(item => item.location))];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -238,10 +361,6 @@ export default function AdminGalleryPage() {
               </Button>
             </Link>
             <div className="flex items-center space-x-3">
-              {/* <div className="flex items-center space-x-2">
-                <Camera className="h-8 w-8 text-primary" />
-                <Bike className="h-6 w-6 text-blue-600" />
-              </div> */}
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
                   Gallery Management
@@ -368,7 +487,7 @@ export default function AdminGalleryPage() {
             <Card key={item.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
               <CardContent className="p-0">
                 <div className="relative">
-                  <img
+                  <GalleryImagePreview
                     src={item.image}
                     alt={item.title}
                     className="w-full h-48 object-cover rounded-t-lg"
@@ -487,14 +606,28 @@ export default function AdminGalleryPage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="image">Image URL *</Label>
-                <Input
-                  id="image"
-                  value={formData.image}
-                  onChange={(e) => setFormData({...formData, image: e.target.value})}
-                  placeholder="Enter image URL"
-                />
+              {/* Image Input with Parsed Preview */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="image">Image URL *</Label>
+                  <Input
+                    id="image"
+                    value={formData.image}
+                    onChange={(e) => setFormData({...formData, image: e.target.value})}
+                    placeholder="Enter image URL or Google Drive link"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Supports Google Drive links, direct image URLs
+                  </p>
+                </div>
+                <div>
+                  <Label>Image Preview</Label>
+                  <GalleryImagePreview
+                    src={formData.image}
+                    alt="Gallery image preview"
+                    className="w-full h-24 rounded-lg object-cover border-2 border-gray-300"
+                  />
+                </div>
               </div>
 
               <div>
@@ -517,17 +650,6 @@ export default function AdminGalleryPage() {
                   rows={3}
                 />
               </div>
-
-              {formData.image && (
-                <div>
-                  <Label>Preview</Label>
-                  <img
-                    src={formData.image}
-                    alt="Preview"
-                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                  />
-                </div>
-              )}
 
               <div className="flex justify-end space-x-3">
                 <Button

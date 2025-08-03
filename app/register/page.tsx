@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
+import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -38,6 +40,7 @@ const clubSchema = z.object({
   acceptTerms: z.boolean().refine((val) => val === true, {
     message: "You must accept the terms and conditions",
   }),
+  rideName: z.string().optional()
 })
 
 const individualSchema = z.object({
@@ -51,6 +54,7 @@ const individualSchema = z.object({
   bio: z.string().min(10, "Bio must be at least 10 characters"),
   ridingExperience: z.string().min(1, "Riding experience is required"),
   licenceNumber: z.string().min(1, "Licence number is required"),
+  rideName: z.string().optional(), // Added ride name field
   instagram: z.string().optional(),
   facebook: z.string().optional(),
   twitter: z.string().optional(),
@@ -95,9 +99,11 @@ const countries: string[] = [
 const sortedCountries = [...countries].sort((a, b) => a.localeCompare(b))
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [registrationType, setRegistrationType] = useState<"club" | "individual">("individual")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [prefilledRideName, setPrefilledRideName] = useState<string>("")
 
   const schema = registrationType === "club" ? clubSchema : individualSchema
 
@@ -113,6 +119,18 @@ export default function RegisterPage() {
   })
 
   const acceptTerms = watch("acceptTerms")
+
+  // Handle URL parameters for ride name
+// Handle URL parameters for ride name - App Router version
+const searchParams = useSearchParams();
+useEffect(() => {
+  const rideName = searchParams.get('rideName')
+  if (rideName) {
+    const decodedRideName = decodeURIComponent(rideName)
+    setPrefilledRideName(decodedRideName)
+    setValue("rideName", decodedRideName)
+  }
+}, [searchParams, setValue])
 
   /**
    * Submit Registration using the current API
@@ -155,6 +173,10 @@ export default function RegisterPage() {
     const newType = value as "club" | "individual"
     setRegistrationType(newType)
     reset()
+    // Preserve ride name when switching types
+    if (prefilledRideName) {
+      setValue("rideName", prefilledRideName)
+    }
   }
 
   if (isSubmitted) {
@@ -166,7 +188,6 @@ export default function RegisterPage() {
               <CardContent className="p-12">
                 <div className="flex items-center justify-center space-x-3 mb-6">
                   <CheckCircle className="h-16 w-16 text-green-500" />
-                  {/* <Bike className="h-12 w-12 text-blue-500 animate-bounce" /> */}
                 </div>
                 <h1 className="text-3xl font-bold text-foreground mb-4">Registration Successful!</h1>
                 <p className="text-xl text-muted-foreground mb-8">
@@ -206,7 +227,6 @@ export default function RegisterPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-3 mb-4">
-              {/* <Bike className="h-10 w-10 text-primary animate-bounce" /> */}
               <Users className="h-8 w-8 text-blue-600" />
             </div>
             <h1 className="text-4xl font-bold text-foreground mb-4">Join Our Community</h1>
@@ -245,6 +265,29 @@ export default function RegisterPage() {
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                {/* Ride Name Field - NEW */}
+                <div className="space-y-2">
+                  <Label htmlFor="rideName" className="flex items-center space-x-2">
+                    <Bike className="h-4 w-4" />
+                    <span>Ride Name {prefilledRideName ? "(Auto-filled)" : "(Optional)"}</span>
+                  </Label>
+                  <Input
+                    id="rideName"
+                    {...register("rideName")}
+                    placeholder={prefilledRideName ? "" : "Enter ride name or leave empty"}
+                    className="bg-background"
+                    defaultValue={prefilledRideName}
+                  />
+                  {prefilledRideName && (
+                    <p className="text-sm text-green-600">
+                      ✓ Pre-filled from selected ride: {prefilledRideName}
+                    </p>
+                  )}
+                  {errors && "rideName" in errors && errors.rideName && (
+                    <p className="text-sm text-red-500">{errors.rideName.message}</p>
+                  )}
+                </div>
+
                 {/* Individual Form */}
                 {registrationType === "individual" && (
                   <>
@@ -420,12 +463,12 @@ export default function RegisterPage() {
                 <div className="space-y-2">
                   <Label htmlFor="licenceNumber" className="flex items-center space-x-2">
                     <Car className="h-4 w-4" />
-                    <span>Licence Number *</span>
+                    <span>Vehicle Number *</span>
                   </Label>
                   <Input
                     id="licenceNumber"
                     {...register("licenceNumber")}
-                    placeholder="Enter your licence number"
+                    placeholder="Enter your vehicle number"
                     className="bg-background"
                   />
                   {errors.licenceNumber && (
