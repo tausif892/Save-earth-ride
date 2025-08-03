@@ -24,7 +24,7 @@ export interface RegistrationData {
   facebook?: string;
   twitter?: string;
   acceptTerms: boolean;
-
+  rideName?: string;
   registrationId?: string;
   timestamp?: string;          
   registrationDate?: string;  

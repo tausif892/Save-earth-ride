@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       facebook: body.facebook,
       twitter: body.twitter,
       acceptTerms: body.acceptTerms,
+      rideName: body.rideName
     };
 
     // Add registration to Google Sheets
