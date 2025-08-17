@@ -295,7 +295,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bio">Personal Bio *</Label>
+                      <Label htmlFor="bio">Riding Experience </Label>
                       <Textarea
                         id="bio"
                         {...register("bio")}
@@ -420,7 +420,7 @@ export default function RegisterPage() {
                 <div className="space-y-2">
                   <Label htmlFor="licenceNumber" className="flex items-center space-x-2">
                     <Car className="h-4 w-4" />
-                    <span>Licence Number *</span>
+                    <span>Vechicle Number</span>
                   </Label>
                   <Input
                     id="licenceNumber"
