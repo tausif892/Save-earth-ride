@@ -265,7 +265,7 @@ export default function AdminPage() {
                 onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                 placeholder="Enter your password"
                 className="bg-background"
-                disabled={isLoading}
+                
                 required
               />
             </div>
@@ -284,7 +284,7 @@ export default function AdminPage() {
               type="submit" 
               className="w-full" 
               size="lg"
-              disabled={isLoading || loginAttempts >= 5}
+              
             >
               {isLoading ? (
                 <>
