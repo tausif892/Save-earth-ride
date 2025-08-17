@@ -339,7 +339,7 @@ useEffect(() => {
 
                     
                   
-                )}
+                
 
                 {/* Club Form */}
                 {registrationType === "club" && (
