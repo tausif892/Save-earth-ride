@@ -295,7 +295,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bio">Riding Experience </Label>
+                      <Label htmlFor="bio">Riding Details (if any) </Label>
                       <Textarea
                         id="bio"
                         {...register("bio")}
