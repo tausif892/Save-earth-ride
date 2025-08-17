@@ -337,20 +337,8 @@ useEffect(() => {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Personal Bio *</Label>
-                      <Textarea
-                        id="bio"
-                        {...register("bio")}
-                        placeholder="Tell us about yourself, your passion for riding, and environmental interests..."
-                        rows={4}
-                        className="bg-background"
-                      />
-                      {errors && "bio" in errors && errors.bio && (
-                        <p className="text-sm text-red-500">{errors.bio.message}</p>
-                      )}
-                    </div>
-                  </>
+                    
+                  
                 )}
 
                 {/* Club Form */}
