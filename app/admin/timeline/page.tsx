@@ -87,6 +87,7 @@ export default function AdminTimelinePage() {
     side: 'left' as 'left' | 'right',
     contactEmail: ''
   });
+  const [imagePreview, setImagePreview] = useState<string>('');
 
   const eventTypes = ['Tree Planting', 'Conservation', 'Beach Cleanup', 'Awareness', 'Desert Greening', 'Global Event', 'Water Conservation', 'Urban Planting'];
 
@@ -212,6 +213,7 @@ export default function AdminTimelinePage() {
       title: '', location: '', date: '', type: '', participants: '', 
       treesPlanted: '', description: '', image: '', side: 'left', contactEmail: ''
     });
+    setImagePreview('');
   };
 
   // Edit timeline item
@@ -229,6 +231,7 @@ export default function AdminTimelinePage() {
       side: item.side || 'left',
       contactEmail: item.contactEmail || ''
     });
+    setImagePreview(item.image || '');
   };
 
   // Update timeline item
@@ -598,14 +601,62 @@ export default function AdminTimelinePage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="image">Image URL</Label>
-                <Input
-                  id="image"
-                  value={formData.image}
-                  onChange={(e) => setFormData({...formData, image: e.target.value})}
-                  placeholder="Enter image URL"
-                />
+              {/* Image Upload Section */}
+              <div className="space-y-2">
+                <Label htmlFor="image">Event Image</Label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!file.type.startsWith('image/')) {
+                          toast.error('Please select a valid image file');
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error('Image size should be less than 5MB');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const result = ev.target?.result as string;
+                          setImagePreview(result);
+                          setFormData(prev => ({ ...prev, image: result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload an image for this event (max 5MB, image files only) or paste a URL below
+                    </p>
+                    <Input
+                      id="image-url"
+                      value={formData.image}
+                      onChange={(e) => {
+                        setFormData({...formData, image: e.target.value});
+                        setImagePreview(e.target.value);
+                      }}
+                      placeholder="Enter image URL"
+                      className="mt-2"
+                    />
+                  </div>
+                  {imagePreview && (
+                    <div className="flex-shrink-0">
+                      <img
+                        src={imagePreview}
+                        alt="Image Preview"
+                        width={60}
+                        height={60}
+                        className="rounded-lg object-cover border-2 border-gray-300"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
