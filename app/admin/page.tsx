@@ -28,39 +28,7 @@ import { toast } from 'sonner';
  * Loads admin credentials from localStorage (admin-managed data).
  * In production, this would be replaced with secure API authentication.
  */
-const getAdminCredentials = () => {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem('adminData');
-      if (saved) {
-        const admins = JSON.parse(saved);
-        return admins.filter((admin: any) => admin.status === 'active');
-      }
-    } catch (error) {
-      console.error('Error loading admin credentials:', error);
-    }
-  }
-  
-  // Default admin credentials if localStorage is empty
-  return [
-    {
-      id: 1,
-      username: 'admin',
-      email: 'admin@saveearthride.com',
-      password: 'saveearthride2024',
-      role: 'Super Admin',
-      status: 'active'
-    },
-    {
-      id: 2,
-      username: 'manager',
-      email: 'manager@saveearthride.com',
-      password: 'manager123',
-      role: 'Manager',
-      status: 'active'
-    }
-  ];
-};
+// REMOVED: getAdminCredentials and all hardcoded credentials
 
 export default function AdminPage() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -69,78 +37,39 @@ export default function AdminPage() {
 
   /**
    * Authentication Handler
-   * 
-   * Validates user credentials against the admin database.
-   * Implements security features like attempt limiting and role-based access.
-   * 
-   * Security Features:
-   * - Login attempt limiting (max 5 attempts)
-   * - Input validation and sanitization
-   * - Role-based redirection
-   * - Session management preparation
+   *
+   * This will be updated to call a secure backend API for authentication.
    */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check for too many failed attempts
     if (loginAttempts >= 5) {
       toast.error('Too many failed attempts. Please try again later.');
       return;
     }
-
-    // Input validation
     if (!loginForm.username.trim() || !loginForm.password.trim()) {
       toast.error('Please enter both username and password');
       return;
     }
-
     setIsLoading(true);
-
     try {
-      // Load admin credentials
-      const adminCredentials = getAdminCredentials();
-      
-      // Find matching admin
-      const admin = adminCredentials.find((a: any) => 
-        a.username.toLowerCase() === loginForm.username.toLowerCase() && 
-        a.password === loginForm.password &&
-        a.status === 'active'
-      );
-
-      if (admin) {
-        // Store admin session data
-        const sessionData = {
-          id: admin.id,
-          username: admin.username,
-          email: admin.email,
-          role: admin.role,
-          loginTime: new Date().toISOString(),
-          permissions: getRolePermissions(admin.role)
-        };
-        
-        localStorage.setItem('adminSession', JSON.stringify(sessionData));
-        
-        // Update last login time
-        const updatedAdmins = adminCredentials.map((a: any) => 
-          a.id === admin.id 
-            ? { ...a, lastLogin: new Date().toLocaleDateString() }
-            : a
-        );
-        localStorage.setItem('adminData', JSON.stringify(updatedAdmins));
-        
-        toast.success(`Welcome back, ${admin.username}! (${admin.role})`);
-        
-        // Role-based redirection
-        setTimeout(() => {
-          window.location.href = '/admin/dashboard';
-        }, 1000);
-        
-        // Reset login attempts on successful login
-        setLoginAttempts(0);
-      } else {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginForm.username,
+          password: loginForm.password,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Login failed' }));
         setLoginAttempts(prev => prev + 1);
-        toast.error(`Invalid credentials. ${5 - loginAttempts - 1} attempts remaining.`);
+        toast.error(err.error || 'Invalid credentials');
+        return;
       }
+      toast.success('Logged in successfully');
+      setTimeout(() => {
+        window.location.href = '/admin/dashboard';
+      }, 500);
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
