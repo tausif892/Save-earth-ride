@@ -21,7 +21,6 @@ const navItems = [
   { href: '/admin/sponsors', label: 'Sponsors', icon: Handshake },
   { href: '/admin/admins', label: 'Admins', icon: Shield },
   { href: '/', label: 'Website', icon: Users },
-  { href: '/admin', label: '', icon: LogOut },
 ];
 
 export default function AdminNavbar() {
@@ -30,6 +29,14 @@ export default function AdminNavbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/admin';
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/50 shadow-lg">
@@ -79,6 +86,10 @@ export default function AdminNavbar() {
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle Theme</span>
           </Button>
+
+          <Button variant="outline" className="ml-2" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
         </div>
 
         {/* Mobile Navigation */}
@@ -112,6 +123,9 @@ export default function AdminNavbar() {
                     {label}
                   </Link>
                 ))}
+                <Button variant="outline" onClick={() => { setIsOpen(false); handleLogout(); }}>
+                  <LogOut className="h-4 w-4 mr-2" /> Logout
+                </Button>
               </div>
             </SheetContent>
           </Sheet>

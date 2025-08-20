@@ -1,5 +1,6 @@
 import clientPromise from './mongo';
 import { Collection } from 'mongodb';
+import { hashPassword } from './auth';
 
 export interface Admin {
   id: number;
@@ -73,14 +74,37 @@ export async function writeAdminsToSheet(admins: Admin[]) {
   const newAdmins: Admin[] = [];
   const changedAdmins: Admin[] = [];
 
-  admins.forEach((adm) => {
+  for (const adm of admins) {
     const prev = existingMap.get(adm.id);
-    if (!prev) {
-      newAdmins.push(adm);
-    } else if (hasAdminChanged(prev, adm)) {
-      changedAdmins.push(adm);
+    const normalized: Admin = { ...adm };
+
+    // Password handling:
+    // - If creating new admin and password is provided but not hashed, hash it
+    // - If updating and password is empty, preserve previous hashed password
+    // - If updating and password provided (plaintext), hash it; if already hashed ($2...), keep as-is
+    if (prev) {
+      if (typeof normalized.password === 'string') {
+        const pwd = normalized.password.trim();
+        if (pwd === '' && typeof prev.password === 'string' && prev.password.length > 0) {
+          normalized.password = prev.password;
+        } else if (!pwd.startsWith('$2')) {
+          normalized.password = await hashPassword(pwd);
+        }
+      } else if (prev.password) {
+        normalized.password = prev.password;
+      }
+    } else {
+      if (typeof normalized.password === 'string' && normalized.password.length > 0 && !normalized.password.startsWith('$2')) {
+        normalized.password = await hashPassword(normalized.password);
+      }
     }
-  });
+
+    if (!prev) {
+      newAdmins.push(normalized);
+    } else if (hasAdminChanged(prev, normalized)) {
+      changedAdmins.push(normalized);
+    }
+  }
 
   if (changedAdmins.length) {
     await col.bulkWrite(

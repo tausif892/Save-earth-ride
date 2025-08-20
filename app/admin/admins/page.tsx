@@ -17,26 +17,26 @@ import * as XLSX from 'xlsx';
 
 // Initial admin data
 const initialAdminData = [
-  {
-    id: 1,
-    username: 'admin',
-    email: 'admin@saveearthride.com',
-    password: 'saveearthride2024',
-    role: 'Super Admin',
-    createdAt: '2024-01-01',
-    lastLogin: '2024-12-15',
-    status: 'active'
-  },
-  {
-    id: 2,
-    username: 'manager',
-    email: 'manager@saveearthride.com',
-    password: 'manager123',
-    role: 'Manager',
-    createdAt: '2024-06-15',
-    lastLogin: '2024-12-10',
-    status: 'active'
-  }
+	{
+		id: 1,
+		username: 'admin',
+		email: 'admin@saveearthride.com',
+		password: '',
+		role: 'Super Admin',
+		createdAt: '2024-01-01',
+		lastLogin: '2024-12-15',
+		status: 'active'
+	},
+	{
+		id: 2,
+		username: 'manager',
+		email: 'manager@saveearthride.com',
+		password: '',
+		role: 'Manager',
+		createdAt: '2024-06-15',
+		lastLogin: '2024-12-10',
+		status: 'active'
+	}
 ];
 
 export default function AdminManagementPage() {
@@ -73,7 +73,8 @@ export default function AdminManagementPage() {
     try{
       const res = await fetch('/api/admins');
       const json = await res.json();
-      setAdminData(json.data);
+      // UI should not hold password hashes
+      setAdminData(json.data.map((a: any) => ({ ...a, password: '' })));
     } catch (error) {
       toast.error('Failed to load admin');
       console.error(error);
@@ -382,20 +383,7 @@ export default function AdminManagementPage() {
                           <div>Email: {item.email}</div>
                           <div className="flex items-center space-x-2">
                             <span>Password:</span>
-                            <span className="font-mono">
-                              {showPassword[item.id] ? item.password : '••••••••'}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => togglePasswordVisibility(item.id)}
-                              className="h-6 w-6 p-0"
-                            >
-                              {showPassword[item.id] ? 
-                                <EyeOff className="h-3 w-3" /> : 
-                                <Eye className="h-3 w-3" />
-                              }
-                            </Button>
+                            <span className="font-mono">{'••••••••'}</span>
                           </div>
                           <div>Created: {item.createdAt}</div>
                           <div>Last Login: {item.lastLogin}</div>
