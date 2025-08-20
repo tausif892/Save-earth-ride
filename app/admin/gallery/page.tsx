@@ -167,6 +167,7 @@ export default function AdminGalleryPage() {
     description: '',
     image: ''
   });
+  const [imageFileName, setImageFileName] = useState<string>('');
 
   useEffect(() => {
     loadGalleryData();
@@ -262,6 +263,7 @@ export default function AdminGalleryPage() {
       description: item.description,
       image: item.image
     });
+    setImageFileName('');
   };
 
   // Update gallery item
@@ -336,6 +338,7 @@ export default function AdminGalleryPage() {
     setFormData({
       title: '', location: '', city: '', year: '', tags: '', description: '', image: ''
     });
+    setImageFileName('');
   };
 
   // Filter data
@@ -606,27 +609,56 @@ export default function AdminGalleryPage() {
                 </div>
               </div>
 
-              {/* Image Input with Parsed Preview */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="image">Image URL *</Label>
-                  <Input
-                    id="image"
-                    value={formData.image}
-                    onChange={(e) => setFormData({...formData, image: e.target.value})}
-                    placeholder="Enter image URL or Google Drive link"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supports Google Drive links, direct image URLs
-                  </p>
-                </div>
-                <div>
-                  <Label>Image Preview</Label>
-                  <GalleryImagePreview
-                    src={formData.image}
-                    alt="Gallery image preview"
-                    className="w-full h-24 rounded-lg object-cover border-2 border-gray-300"
-                  />
+              {/* Image Upload Section (local files only) */}
+              <div className="space-y-2">
+                <Label htmlFor="image">Gallery Image *</Label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <Input
+                      id="image-file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!file.type.startsWith('image/')) {
+                          toast.error('Please select a valid image file');
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error('Image size should be less than 5MB');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const result = ev.target?.result as string;
+                          setFormData(prev => ({ ...prev, image: result }));
+                          setImageFileName(file.name);
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload an image (max 5MB). Only local file uploads are allowed here.
+                    </p>
+                    {imageFileName && (
+                      <div className="mt-2 text-sm text-gray-700">
+                        Selected file: <span className="font-medium">{imageFileName}</span>
+                      </div>
+                    )}
+                  </div>
+                  {formData.image && (
+                    <div className="flex-shrink-0">
+                      <img
+                        src={formData.image}
+                        alt="Image Preview"
+                        width={60}
+                        height={60}
+                        className="rounded-lg object-cover border-2 border-gray-300"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
